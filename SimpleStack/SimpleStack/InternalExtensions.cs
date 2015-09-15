@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using Autofac;
 
 namespace SimpleStack
@@ -16,6 +17,20 @@ namespace SimpleStack
 			}
 
 			return container.Resolve<T>(parameters.ToArray());
+		}
+
+		public static Type GetUnderlyingType(this Type type)
+		{
+
+			bool nullableType = type.IsGenericType
+				&& type.GetGenericTypeDefinition().Equals(typeof(Nullable<>));
+
+			if (nullableType)
+			{
+				type = new System.ComponentModel.NullableConverter(type).UnderlyingType;
+			}
+
+			return type;
 		}
 	}
 }

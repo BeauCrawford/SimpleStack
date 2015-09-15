@@ -104,7 +104,7 @@ namespace SimpleStack
 					}
 					else
 					{
-						var propertyType = property.PropertyType;
+						var propertyType = property.PropertyType.GetUnderlyingType();
 
 						if (propertyPatterns.ContainsKey(propertyType))
 						{
