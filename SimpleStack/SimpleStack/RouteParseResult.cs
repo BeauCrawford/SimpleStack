@@ -16,7 +16,6 @@ namespace SimpleStack
 		}
 
 		public Regex Pattern { get; private set; }
-
 		public IDictionary<int, PropertyInfo> RouteGroups { get; private set; }
 	}
 }

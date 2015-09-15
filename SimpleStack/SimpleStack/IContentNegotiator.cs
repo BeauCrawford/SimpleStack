@@ -4,6 +4,7 @@ namespace SimpleStack
 {
 	public interface IContentNegotiator
 	{
-		string Negotiate(HttpContextBase http);
+		ContentType GetRequestContentType(HttpContextBase http);
+		ContentType GetResponseContentType(HttpContextBase http);
 	}
 }

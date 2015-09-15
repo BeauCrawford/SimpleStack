@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Text;
@@ -11,18 +12,67 @@ namespace SimpleStack
 {
 	public class RouteInfo
 	{
+		#region Static
+
 		private static Regex routePropertyPattern = new Regex(@"\{([a-zA-Z0-9]+)\}", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+		public static object Convert(Type targetType, string value)
+		{
+			Guard.NotNull(targetType, "targetType");
+
+			var converter = System.ComponentModel.TypeDescriptor.GetConverter(targetType);
+			return converter.ConvertFrom(value);
+		}
+
+		public static string GetRequestBody(HttpContextBase http, Type requestType, ContentType requestContentType)
+		{
+			Guard.NotNull(http, "http");
+			Guard.NotNull(requestType, "requestType");
+			Guard.NotNull(requestContentType, "requestContentType");
+
+			string body = null;
+
+			if (http.Request != null && http.Request.InputStream != null)
+			{
+				using (var stream = http.Request.InputStream)
+				{
+					using (var reader = new StreamReader(stream, true))
+					{
+						body = reader.ReadToEnd();
+					}
+				}
+			}
+
+			if (string.IsNullOrWhiteSpace(body))
+			{
+				return requestContentType.GetDefaultBody(requestType);
+			}
+			else
+			{
+				return body;
+			}
+		}
 
 		public static class Patterns
 		{
-			public const string Anything = "[a-zA-Z0-9]+";
+			public const string Anything = "[^/]+";
+			public const string GroupedAnything = "([^/]+)";
 			public const string GroupedInteger = "([0-9]+)";
-			public const string GroupedString = "([a-zA-Z0-9]+)";
+			public const string GroupedString = "([^/]+)";
 		}
 
 		public static class Messages
 		{
 			public const string InvalidParameterCount = "Invalid Parameter Count";
+			public const string RequestNotMatched = "Request is not a match for this Route";
+		}
+
+		private static readonly Dictionary<Type, string> propertyPatterns = new Dictionary<Type, string>();
+
+		static RouteInfo()
+		{
+			propertyPatterns.Add(typeof(int), Patterns.GroupedInteger);
+			propertyPatterns.Add(typeof(string), Patterns.GroupedString);
 		}
 
 		public static RouteParseResult Parse(string route, Type requestType)
@@ -54,17 +104,15 @@ namespace SimpleStack
 					}
 					else
 					{
-						if (property.PropertyType == typeof(int))
+						var propertyType = property.PropertyType;
+
+						if (propertyPatterns.ContainsKey(propertyType))
 						{
-							routePattern.Append(Patterns.GroupedInteger);
-						}
-						else if (property.PropertyType == typeof(string))
-						{
-							routePattern.Append(Patterns.GroupedString);
+							routePattern.Append(propertyPatterns[propertyType]);
 						}
 						else
 						{
-							throw new NotSupportedException("Property type not supported: " + property.PropertyType);
+							routePattern.Append(Patterns.GroupedAnything);
 						}
 
 						groups.Add(groupCounter, property);
@@ -84,6 +132,8 @@ namespace SimpleStack
 
 			return new RouteParseResult(pattern, groups);
 		}
+
+		#endregion
 
 		public RouteInfo(string route, MethodInfo method)
 		{
@@ -108,44 +158,38 @@ namespace SimpleStack
 		public MethodInfo Method { get; private set; }
 		public Type RequestType { get; private set; }
 
-		public bool IsMatch(HttpContextBase context)
+		public bool IsMatch(HttpContextBase http)
 		{
-			return context != null
-				&& context.Request != null
-				&& !string.IsNullOrWhiteSpace(context.Request.Path)
-				&& string.Compare(Method.Name, context.Request.HttpMethod, true) == 0
-				&& Result.Pattern.IsMatch(context.Request.Path);
+			return http != null
+				&& http.Request != null
+				&& !string.IsNullOrWhiteSpace(http.Request.Path)
+				&& (string.Compare(HttpMethods.Any, Method.Name, true) == 0 || string.Compare(Method.Name, http.Request.HttpMethod, true) == 0)
+				&& Result.Pattern.IsMatch(http.Request.Path);
 		}
 
-		public object CreateRequest(IContainer container, HttpContextBase context)
+		public object CreateRequest(IContainer container, HttpContextBase http, ContentType requestContentType)
 		{
-			var request = container.Resolve(RequestType);
+			Guard.NotNull(container, "container");
+			Guard.NotNull(http, "http");
+			Guard.NotNull(requestContentType, "requestContentType");
 
-			var match = Result.Pattern.Match(context.Request.Path);
+			var match = Result.Pattern.Match(http.Request.Path);
 
 			if (!match.Success)
 			{
-				throw new InvalidOperationException();
+				throw new InvalidOperationException(Messages.RequestNotMatched);
 			}
+
+			var body = GetRequestBody(http, RequestType, requestContentType);
+			var serializer = requestContentType.CreateSerializer();
+			var request = serializer.Deserialize(RequestType, body);
 
 			for (int i = 1; i < match.Groups.Count; i++)
 			{
 				var groupValue = match.Groups[i].Value;
-
 				var property = Result.RouteGroups[i];
-
-				if (property.PropertyType == typeof(int))
-				{
-					property.SetValue(request, int.Parse(groupValue));
-				}
-				else if (property.PropertyType == typeof(string))
-				{
-					property.SetValue(request, groupValue);
-				}
-				else
-				{
-					throw new InvalidOperationException();
-				}
+				var convertedValue = Convert(property.PropertyType, groupValue);
+				property.SetValue(request, convertedValue);
 			}
 
 			return request;

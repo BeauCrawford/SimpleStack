@@ -4,9 +4,14 @@ namespace SimpleStack
 {
 	public class ContentNegotiator : IContentNegotiator
 	{
-		public string Negotiate(HttpContextBase http)
+		public ContentType GetRequestContentType(HttpContextBase http)
 		{
-			return "application/json";
+			return new JsonContentType();
+		}
+
+		public ContentType GetResponseContentType(HttpContextBase http)
+		{
+			return new JsonContentType();
 		}
 	}
 }

@@ -24,7 +24,7 @@ namespace SimpleStack.Tests
 		{
 			var result = RouteInfo.Parse("/Product/{PropA}/{PropB}", typeof(ProductRequest));
 
-			Assert.AreEqual("^/Product/[a-zA-Z0-9]+/[a-zA-Z0-9]+$", result.Pattern.ToString());
+			Assert.AreEqual("^/Product/[^/]+/[^/]+$", result.Pattern.ToString());
 
 			Assert.AreEqual(0, result.RouteGroups.Count);
 		}

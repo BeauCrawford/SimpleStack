@@ -5,9 +5,9 @@ using System.Reflection;
 
 namespace SimpleStack
 {
-	public class RouteFinder
+	public class RouteLocator
 	{
-		public RouteFinder()
+		public RouteLocator()
 		{
 		}
 
@@ -19,7 +19,7 @@ namespace SimpleStack
 			{
 				var types = assembly.GetTypes();
 
-				var allowedMethodNames = new[] { "Post", "Get", "Put", "Delete" };
+				var allowedMethodNames = new[] { HttpMethods.Any, HttpMethods.Post, HttpMethods.Get, HttpMethods.Put, HttpMethods.Delete };
 
 				foreach (var type in types)
 				{

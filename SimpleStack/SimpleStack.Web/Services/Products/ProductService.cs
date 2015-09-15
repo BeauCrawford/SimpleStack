@@ -5,7 +5,7 @@ namespace SimpleStack.Web.Services.Products
 {
 	public class ProductService
 	{
-		public ProductService(HttpContextBase http)
+		public ProductService(HttpContextBase http, ServiceOptions options)
 		{
 			Http = http;
 		}
@@ -19,7 +19,7 @@ namespace SimpleStack.Web.Services.Products
 			return response;
 		}
 
-		public ProductResponse Post(ProductRequest request)
+		public ProductResponse Any(ProductRequest request)
 		{
 			var response = new ProductResponse();
 			response.Message = "POST: " + DateTime.Now.ToFileTimeUtc();

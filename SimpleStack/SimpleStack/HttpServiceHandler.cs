@@ -25,13 +25,15 @@ namespace SimpleStack
 			try
 			{
 				var negotiator = Container.Resolve<IContentNegotiator>();
-				var serializer = Container.Resolve<IJsonSerializer>();
+				var requestContentType = negotiator.GetRequestContentType(http);
+				var responseContentType = negotiator.GetResponseContentType(http);
+				var responseSerializer = responseContentType.CreateSerializer();
 				var service = Container.Resolve(Route.Method.DeclaringType);
-				var request = Route.CreateRequest(Container, http);
+				var request = Route.CreateRequest(Container, http, requestContentType);
 				var response = Route.Method.Invoke(service, new object[] { request });
 
-				http.Response.ContentType = negotiator.Negotiate(http);
-				http.Response.Write(serializer.Serialize(response));
+				http.Response.ContentType = responseContentType.Name;
+				http.Response.Write(responseSerializer.Serialize(response));
 			}
 			catch (HttpException httpError)
 			{
